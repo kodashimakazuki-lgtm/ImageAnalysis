@@ -1,0 +1,10 @@
+path: "C:\\Users\\01A1561\\Desktop\\imageAnalysis\\car\\data\\dataset"  # 分割した「dataset」フォルダの絶対パス（推奨）
+train: images/train              # pathからの相対パス
+val: images/val                  # pathからの相対パス
+test:                            # 空欄でOK
+
+# クラス（ラベル）の設定
+names:
+  0: car                         # VoTTで設定したインデックス番号とクラス名
+  1: track
+  2: bike
