@@ -69,7 +69,7 @@ if __name__ == "__main__":
     RTSP_URL = "rtsp://ebara:Ebara1234@192.168.0.10/Src/MediaInput/stream_1"
     SAVE_DIRECTORY = r"C:\YOLOcamera" # ← ここに保存先のパスを指定（相対・絶対パス両対応）
     FILE_PREFIX = "Camera01"
-    SPLIT_MIN = 1 
+    SPLIT_MIN = 0.5 
     # ----------------
     # ctrl+cで終了
 
