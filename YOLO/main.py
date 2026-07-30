@@ -1,11 +1,10 @@
+#画像検知,データベース更新用
 import cv2
 import time
 import oracledb
 from ultralytics import YOLO
 
-# ==========================================
-# 1. Oracle 接続設定
-# ==========================================
+# Oracle 接続設定
 DB_USER = "TSM_MGR_ST1"
 DB_PASSWORD = "abc1_def"
 DB_HOST = "devexavm01-vi1jg1-vip.ebara.com"
@@ -17,28 +16,26 @@ dsn = f"{DB_HOST}:{DB_PORT}/{DB_SERVICE_NAME}"
 try:
     conn = oracledb.connect(user=DB_USER, password=DB_PASSWORD, dsn=dsn)
     cursor = conn.cursor()
-    print("✅ Oracle Database への接続に成功しました。")
+    print("Oracle Database への接続に成功しました。")
 except Exception as e:
-    print(f"❌ DB接続エラー: {e}")
+    print(f"DB接続エラー: {e}")
     exit()
 
-# DBステータス更新関数
-def update_status_in_oracle(status_val):
+# DBステータス更新
+def update_status_in_db(status):
     try:
         # ※もし特定の行だけ更新したい場合は WHERE 句を追加してください
         sql = """
             UPDATE IMAGE_ANALYSIS 
             SET STATUS = :1, UPDATE_TIME = CURRENT_TIMESTAMP 
         """
-        cursor.execute(sql, [status_val])
+        cursor.execute(sql, [status])
         conn.commit()
-        print(f"💾 [Oracle UPDATE] STATUS を {status_val} に更新しました。")
+        print(f"[Oracle UPDATE] STATUS を {status} に更新しました。")
     except Exception as e:
-        print(f"❌ UPDATEエラー: {e}")
+        print(f"UPDATEエラー: {e}")
 
-# ==========================================
-# 2. YOLO & 動画設定
-# ==========================================
+# YOLO 動画設定
 model = YOLO(r"C:\YOLO\YOLO\best.pt")
 
 SOURCE = "rtsp://ebara:Ebara1234@192.168.0.10/Src/MediaInput/stream_1"
@@ -61,13 +58,13 @@ area_y1 = int((height - area_h) / 2)
 area_x2 = area_x1 + area_w
 area_y2 = area_y1 + area_h
 
-# 💡 タイマーと状態管理変数
+# タイマーと状態管理変数
 in_area_start_time = None
 current_status = 0
 prev_status = 0  # 前回のステータスを保持（連打防止用）
 
-print(f"🎥 動画サイズ: {width}x{height}")
-print(f"🎯 縦長エリア座標: [{area_x1}, {area_y1}, {area_x2}, {area_y2}] (幅:{area_w}px, 高さ:{area_h}px)")
+print(f"動画サイズ: {width}x{height}")
+print(f"縦長エリア座標: [{area_x1}, {area_y1}, {area_x2}, {area_y2}] (幅:{area_w}px, 高さ:{area_h}px)")
 print("処理を開始します。停止するには画面上で 'q' キーを押してください。")
 
 while cap.isOpened():
@@ -77,13 +74,13 @@ while cap.isOpened():
         break
 
     results = model(frame, verbose=False)
-    target_in_area = False  # 変数を統一
+    target_in_area = False 
 
     # 検出判定
     for box in results[0].boxes:
-        cls_id = int(box.cls[0].item())
-        label_name = model.names[cls_id]
-        conf = box.conf[0].item()
+        cls_id = int(box.cls[0].item())  #クラスId
+        label_name = model.names[cls_id] #クラス名
+        conf = box.conf[0].item()        #信頼度
 
         if label_name == TARGET_LABEL and conf >= CONF_THRESHOLD:
             x1, y1, x2, y2 = box.xyxy[0].tolist()
@@ -94,7 +91,7 @@ while cap.isOpened():
                 target_in_area = True
                 break
 
-    # 💡 時間計測 & ステータス決定
+    # 時間計測 & ステータス決定
     now = time.time()
     elapsed_time = 0.0
 
@@ -110,9 +107,9 @@ while cap.isOpened():
         in_area_start_time = None
         current_status = 0
 
-    # 💡 【重要】ステータスが切り替わった「瞬間」だけ DB に書き込む
+    #ステータスが切り替わった「瞬間」だけ DB に書き込む
     if current_status != prev_status:
-        update_status_in_oracle(current_status)
+        update_status_in_db(current_status)
         prev_status = current_status  # 最新状態に更新
 
     # --- 画面描画処理 ---
