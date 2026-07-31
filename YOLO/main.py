@@ -24,7 +24,6 @@ except Exception as e:
 # DBステータス更新
 def update_status_in_db(status):
     try:
-        # ※もし特定の行だけ更新したい場合は WHERE 句を追加してください
         sql = """
             UPDATE IMAGE_ANALYSIS 
             SET STATUS = :1, UPDATE_TIME = CURRENT_TIMESTAMP 
@@ -61,7 +60,7 @@ area_y2 = area_y1 + area_h
 # タイマーと状態管理変数
 in_area_start_time = None
 current_status = 0
-prev_status = 0  # 前回のステータスを保持（連打防止用）
+prev_status = 0  
 
 print(f"動画サイズ: {width}x{height}")
 print(f"縦長エリア座標: [{area_x1}, {area_y1}, {area_x2}, {area_y2}] (幅:{area_w}px, 高さ:{area_h}px)")

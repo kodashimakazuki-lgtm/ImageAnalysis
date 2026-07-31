@@ -1,7 +1,8 @@
+#精度表示用
 import csv
 
 # 学習結果が保存されているCSVファイル
-csv_path = r"C:\YOLO\YOLO\runs\detect\train-4\results.csv"
+csv_path = r"C:\YOLO\YOLO\runs\detect\train-2\results.csv"
 
 try:
     with open(csv_path, mode="r", encoding="utf-8") as f:
