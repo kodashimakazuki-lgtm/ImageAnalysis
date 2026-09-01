@@ -2,9 +2,9 @@
 from ultralytics import YOLO
 
 # 学習済みモデルをロード
-model = YOLO(r"C:\YOLO\YOLO\runs\detect\train-8\weights\best.pt")
+model = YOLO(r"C:\YOLO\YOLO\runs\detect\train-11\weights\best.pt")
 
-url = r"C:\YOLOcamera\Camera01_20260804_132600.mp4"
+url = r"C:\YOLOcamera\Camera01_20260805_104550.mp4"
 results = model(url,save=True)
 
 
