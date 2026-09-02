@@ -5,10 +5,10 @@ import threading
 import os
 from ultralytics import YOLO
 
-# --- FFMPEGの低遅延・バッファ無効化設定 ---
+# FFMPEGの低遅延・バッファ無効化設定
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp|fflags;nobuffer|max_delay;0"
 
-# --- 別スレッドで最新フレームを取得するクラス ---
+# 別スレッドで最新フレームを取得するクラス
 class ThreadedRTSPStream:
     def __init__(self, src):
         self.cap = cv2.VideoCapture(src, cv2.CAP_FFMPEG)
@@ -37,7 +37,7 @@ class ThreadedRTSPStream:
         self.stopped = True
         self.cap.release()
 
-# --- Oracle 接続設定 ---
+# Oracle 接続設定
 DB_USER = "TSM_MGR_ST1"
 DB_PASSWORD = "abc1_def"
 DB_HOST = "devexavm01-vi1jg1-vip.ebara.com"
@@ -68,7 +68,7 @@ def update_status_in_db(status):
         print(f"UPDATEエラー: {e}")
 
 
-# --- YOLO 動画設定 ---
+# YOLO 動画設定
 model = YOLO(r"C:\YOLO\YOLO\runs\detect\train-14\weights\best_openvino_model/")
 
 SOURCE = "rtsp://ebara:Ebara1234@192.168.0.10/Src/MediaInput/stream_1"
@@ -81,14 +81,21 @@ REQUIRED_TIME = 3.0
 # カメラの別スレッド読み込みを開始
 stream = ThreadedRTSPStream(SOURCE).start()
 
+# ウィンドウの設定
+cv2.namedWindow("YOLO Vertical Area Detection", cv2.WINDOW_NORMAL)
+cv2.resizeWindow("YOLO Vertical Area Detection", 1024, 576) # 表示したい（横, 縦）サイズに調整
+
 # タイマーと状態管理変数
 in_area_start_time = None
 current_status = 0
 prev_status = 0  
 
+LOST_TOLERANCE = 0.5  # 検知が外れても0.5秒間はタイマーを維持
+last_seen_time = None
+
 print("処理を開始します。停止するには画面上で 'q' キーを押してください。")
 
-# --- メインループ（推論・判定処理） ---
+# メインループ推論・判定処理
 while True:
     # 別スレッドから最新の1フレームだけを取得
     success, frame = stream.read()
@@ -101,10 +108,16 @@ while True:
     # 推論処理
     results = model.predict(
         source=frame,
-        imgsz=416,
         device="CPU",   # 低遅延重視ならCPU、CPU負担軽減ならGPU
         verbose=False
     )
+
+    # デバッグ用（検知結果のリアルタイム確認）
+    # for box in results[0].boxes:
+    #     cls_id = int(box.cls[0].item())
+    #     label = model.names[cls_id]
+    #     conf = box.conf[0].item()
+    #     print(f"[検知] Label: {label}, Conf: {conf:.2f}")
     
     # 検出判定
     area_box = None
@@ -142,23 +155,29 @@ while True:
     elapsed_time = 0.0
 
     if target_in_area:
+        last_seen_time = now
         if in_area_start_time is None:
             in_area_start_time = now
-
         elapsed_time = now - in_area_start_time
-
-        # 3秒以上滞在で status = 1、それ未満は 0
         current_status = 1 if elapsed_time >= REQUIRED_TIME else 0
     else:
-        in_area_start_time = None
-        current_status = 0
+    # 最後に検知してから 0.5 秒以内ならタイマーをリセットせずに保持
+        if last_seen_time is not None and (now - last_seen_time) < LOST_TOLERANCE:
+            if in_area_start_time is not None:
+                elapsed_time = now - in_area_start_time
+                current_status = 1 if elapsed_time >= REQUIRED_TIME else 0
+        else:
+        # 0.5秒を超えて見失った場合のみ完全リセット
+            in_area_start_time = None
+            last_seen_time = None
+            current_status = 0
 
     # ステータスが切り替わった「瞬間」だけ DB に書き込む
     if current_status != prev_status:
         update_status_in_db(current_status)
         prev_status = current_status  # 最新状態に更新
 
-    # --- 画面描画処理 ---
+    # 画面描画処理
     annotated_frame = results[0].plot()
 
     if area_box is not None:
